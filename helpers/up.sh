@@ -18,7 +18,7 @@ _cops_SYSTEM=$(system_detect.sh||./system_detect.sh||"$W/system_detect.sh")
 DISTRIB_ID=
 DISTRIB_CODENAME=
 DISTRIB_RELEASE=
-oldubuntu="^(10\.|12\.|13\.|14.10|15\.|16.10|17\.04|17\.10|18\.10|19\.04)"
+oldubuntu="^(10\.|12\.|13\.|14.10|15\.|16.10|17\.04|17\.10|18\.10|19\.04|19\.10)"
 # oldubuntu="^(10\.|12\.|13\.|14.10|15\.|16.10|17\.04)"
 NOSOCAT=""
 OAPTMIRROR="${OAPTMIRROR:-}"
@@ -39,6 +39,16 @@ elif [ -e /etc/redhat-release ];then
     DISTRIB_ID=$(echo $(head  /etc/issue)|awk '{print tolower($1)}')
     DISTRIB_CODENAME=$(echo $(head  /etc/issue)|awk '{print substr(substr($4,2),1,length($4)-2)}');echo $DISTRIB_RELEASE
     DISTRIB_RELEASE=$(echo $(head  /etc/issue)|awk '{print tolower($3)}')
+fi
+if [ -e /etc/redhat-release ];then
+    if [ -e /etc/fedora-release ];then
+        vv yum upgrade -y --nogpg fedora-gpg-keys fedora-repos
+    fi
+    if ! ( find --version >/dev/null 2>&1);then
+        for pkg in findutils;do
+            ( vv yum -y install $pkg || vv yum --disablerepo=epel -y install $pkg ) || /bin/true
+        done
+    fi
 fi
 DEBIAN_OLDSTABLE=8
 find /etc -name "*.reactivate" | while read f;do
