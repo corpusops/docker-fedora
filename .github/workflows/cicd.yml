@@ -65,7 +65,14 @@ jobs:
       fail-fast: false
       matrix:
         IMAGES:
-        - "library/fedora/31 library/fedora/32 library/fedora/33 library/fedora/34 library/fedora/latest library/fedora/rawhide"
+        - "library/fedora/rawhide"
+        - "library/fedora/latest"
+        - "library/fedora/42 library/fedora/41"
+        - "library/fedora/40 library/fedora/39 library/fedora/38 library/fedora/37"
+        - "library/fedora/36 library/fedora/35 library/fedora/34 library/fedora/33"
+        - "library/fedora/32 library/fedora/31 library/fedora/30 library/fedora/29"
+        - "library/fedora/28 library/fedora/27 library/fedora/26 library/fedora/25"
+        - "library/fedora/24 library/fedora/23 library/fedora/22 library/fedora/20"
         #- "corpusops/test/a corpusops/test/b corpusops/test/c"
         # all images that werent explicitly told to be built would be built in the next batches
         # we span them onto N jobs

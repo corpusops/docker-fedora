@@ -36,14 +36,17 @@ SYSTEM_COPS_ROOT=${SYSTEM_COPS_ROOT-$DEFAULT_COPS_ROOT}
 DOCKER_COPS_ROOT=${DOCKER_COPS_ROOT-$SYSTEM_COPS_ROOT}
 COPS_URL=${COPS_URL-$DEFAULT_COPS_URL}
 BASE_PREPROVISION_IMAGES="ubuntu:latest_preprovision"
+BASE_PREPROVISION_IMAGES="$BASE_PREPROVISION_IMAGES corpusops/ubuntu:24.04_preprovision"
+BASE_PREPROVISION_IMAGES="$BASE_PREPROVISION_IMAGES corpusops/ubuntu:22.04_preprovision"
 BASE_PREPROVISION_IMAGES="$BASE_PREPROVISION_IMAGES corpusops/ubuntu:20.04_preprovision"
 BASE_PREPROVISION_IMAGES="$BASE_PREPROVISION_IMAGES corpusops/ubuntu:18.04_preprovision"
 BASE_PREPROVISION_IMAGES="$BASE_PREPROVISION_IMAGES corpusops/ubuntu:16.04_preprovision"
 BASE_PREPROVISION_IMAGES="$BASE_PREPROVISION_IMAGES corpusops/ubuntu:14.04_preprovision"
 BASE_PREPROVISION_IMAGES="$BASE_PREPROVISION_IMAGES corpusops/centos:7_preprovision"
-BASE_CORE_IMAGES="$BASE_CORE_IMAGES corpusops/ubuntu:latest"
 
 BASE_CORE_IMAGES="$BASE_CORE_IMAGES corpusops/ubuntu:latest"
+BASE_CORE_IMAGES="$BASE_CORE_IMAGES corpusops/ubuntu:24.04"
+BASE_CORE_IMAGES="$BASE_CORE_IMAGES corpusops/ubuntu:22.04"
 BASE_CORE_IMAGES="$BASE_CORE_IMAGES corpusops/ubuntu:20.04"
 BASE_CORE_IMAGES="$BASE_CORE_IMAGES corpusops/ubuntu:18.04"
 BASE_CORE_IMAGES="$BASE_CORE_IMAGES corpusops/ubuntu:16.04"
@@ -53,14 +56,18 @@ BASE_IMAGES="$BASE_PREPROVISION_IMAGES $BASE_CORE_IMAGES"
 EXP_PREPROVISION_IMAGES=""
 EXP_PREPROVISION_IMAGES="$EXP_PREPROVISION_IMAGES archlinux:latest_preprovision"
 EXP_PREPROVISION_IMAGES="$EXP_PREPROVISION_IMAGES debian:latest_preprovision"
-EXP_PREPROVISION_IMAGES="$EXP_PREPROVISION_IMAGES debian:stretch_preprovision"
+#EXP_PREPROVISION_IMAGES="$EXP_PREPROVISION_IMAGES debian:stretch_preprovision"
+EXP_PREPROVISION_IMAGES="$EXP_PREPROVISION_IMAGES debian:bookworm_preprovision"
+EXP_PREPROVISION_IMAGES="$EXP_PREPROVISION_IMAGES debian:bullseye_preprovision"
 EXP_PREPROVISION_IMAGES="$EXP_PREPROVISION_IMAGES debian:buster_preprovision"
 EXP_PREPROVISION_IMAGES="$EXP_PREPROVISION_IMAGES debian:sid_preprovision"
 EXP_CORE_IMAGES=""
 EXP_CORE_IMAGES="$EXP_CORE_IMAGES corpusops/archlinux:latest"
 EXP_CORE_IMAGES="$EXP_CORE_IMAGES corpusops/debian:latest"
-EXP_CORE_IMAGES="$EXP_CORE_IMAGES corpusops/debian:stretch"
+#EXP_CORE_IMAGES="$EXP_CORE_IMAGES corpusops/debian:stretch"
+EXP_CORE_IMAGES="$EXP_CORE_IMAGES corpusops/debian:bullseye"
 EXP_CORE_IMAGES="$EXP_CORE_IMAGES corpusops/debian:buster"
+EXP_CORE_IMAGES="$EXP_CORE_IMAGES corpusops/debian:bookworm"
 EXP_CORE_IMAGES="$EXP_CORE_IMAGES corpusops/debian:sid"
 EXP_IMAGES="$EXP_PREPROVISION_IMAGES $EXP_CORE_IMAGES"
 # ansible related
@@ -74,6 +81,14 @@ NORMAL="\\e[0;0m"
 NO_COLOR=${NO_COLORS-${NO_COLORS-${NOCOLOR-${NOCOLORS-}}}}
 LOGGER_NAME=${LOGGER_NAME:-corpusops_build}
 ERROR_MSG="There were errors"
+is_container() {
+    if ( grep -q container= /proc/1/environ 2>/dev/null ) \
+       || ( grep -E -q 'docker|lxc' /proc/1/cgroup 2>/dev/null ) \
+       || [ -e /.dockerenv ];then
+           return 0
+    fi
+    return 1
+}
 uniquify_string() {
     local pattern=$1
     shift
@@ -262,7 +277,7 @@ is_debian_like() { echo $DISTRIB_ID | grep -E -iq "debian|ubuntu|mint"; }
 is_suse_like() { echo $DISTRIB_ID | grep -E -iq "suse"; }
 is_alpine_like() { echo $DISTRIB_ID | grep -E -iq "alpine" || test -e /etc/alpine-release; }
 is_redhat_like() { echo $DISTRIB_ID \
-        | grep -E -iq "((^ol$)|rhel|redhat|red-hat|centos|fedora)"; }
+        | grep -E -iq "((^ol$)|rhel|redhat|red-hat|centos|fedora|amzn)"; }
 set_lang() { locale=${1:-C};export LANG=${locale};export LC_ALL=${locale}; }
 is_darwin () {
     if [ "x${FORCE_DARWIN-}" != "x" ];then return 0;fi
@@ -311,6 +326,10 @@ detect_os() {
         if [ $DISTRIB_MAJOR  -eq 7 ];then DISTRIB_CODENAME="wheezy";fi
         if [ $DISTRIB_MAJOR  -eq 8 ];then DISTRIB_CODENAME="jessie";fi
         if [ $DISTRIB_MAJOR  -eq 9 ];then DISTRIB_CODENAME="stretch";fi
+        if [ $DISTRIB_MAJOR  -eq 10 ];then DISTRIB_CODENAME="buster";fi
+        if [ $DISTRIB_MAJOR  -eq 11 ];then DISTRIB_CODENAME="bullseye";fi
+        if [ $DISTRIB_MAJOR  -eq 12 ];then DISTRIB_CODENAME="bookworm";fi
+        if [ $DISTRIB_MAJOR  -eq 13 ];then DISTRIB_CODENAME="trixie";fi
     elif [ -e /etc/SuSE-brand ] || [ -e /etc/SuSE-release ];then
         for i in /etc/SuSE-brand /etc/SuSE-release;do
             if [ -e $i ];then
@@ -503,8 +522,8 @@ get_python2() {
 get_python3() {
     local py_ver=3
     get_python_ $py_ver \
-        python3.9  python3.8  python3.7  python3.6  python3.5  python3.4  \
-        python-3.9 python-3.8 python-3.7 python-3.6 python-3.5 python-3.4 \
+        python3.12  python3.11  python3.10  python3.9  python3.8  python3.7  python3.6  python3.5  python3.4  \
+        python-3.12 python-3.11 python-3.10 python-3.9 python-3.8 python-3.7 python-3.6 python-3.5 python-3.4 \
         python-${py_ver} python${py_ver} python
 }
 has_python_module() {
@@ -523,8 +542,18 @@ pymod_ver() {
 get_setuptools() {
     local py=${1:-python}
     local setuptoolsreq="setuptools"
-    if ( is_python2 $py );then setuptoolsreq="setuptools<=45"; else setuptoolsreq="setuptools<50"; fi
+    local cpyver=$($py -c "import sys;print(sys.version.split()[0])")
+    if ( is_python2 $py );then
+        setuptoolsreq="setuptools<=45"
+    elif ( version_lt $cpyver 3.12.0 );then
+        setuptoolsreq="setuptools<66"
+    else
+        setuptoolsreq="setuptools>=75"
+    fi
     echo "$setuptoolsreq"
+}
+setup_setuptools_requirement() {
+    sed -i -re "s/^setuptools\s*(>|<|=|$)/$(get_setuptools $py)/g" requirements/python_requirements.txt
 }
 install_pip() {
     local py="${1:-python}"
@@ -745,8 +774,8 @@ ensure_command() {
 ### archlinux (pacman)
 is_pacman_available() {
     for i in $@;do
-        if ! ( pacman -Si $(i_y) "$i" >/devnull 2>&1 ||\
-                pacman -Sg $(i_y) "$i" >/devnull 2>&1; );then
+        if ! ( pacman -Si $(i_y) "$i" >/dev/null 2>&1 ||\
+                pacman -Sg $(i_y) "$i" >/dev/null 2>&1; );then
             return 1
         fi
     done
@@ -755,7 +784,7 @@ is_pacman_available() {
 
 is_pacman_installed() {
     for i in $@;do
-        if ! ( pacman -Qi $(i_y) "$i" >/devnull 2>&1; ); then
+        if ! ( pacman -Qi $(i_y) "$i" >/dev/null 2>&1; ); then
             return 1
         fi
     done
@@ -790,7 +819,7 @@ microdnf_repoquery() {
 is_microdnf_available() {
     pkgs="$(microdnf repoquery --available)"
     for i in $@;do
-        if ! ( echo "$pkgs" | grep -E -iq "${i}" ; ); then
+        if ! ( echo "$pkgs" | grep -E -iq "^${i}" ; ); then
             return 1
         fi
     done
@@ -799,7 +828,7 @@ is_microdnf_available() {
 is_microdnf_installed() {
     pkgs="$(microdnf repoquery --installed)"
     for i in $@;do
-        if ! ( echo "$pkgs" | grep -E -iq "${i}" ; ); then
+        if ! ( echo "$pkgs" | grep -E -iq "^${i}" ; ); then
             return 1
         fi
     done
